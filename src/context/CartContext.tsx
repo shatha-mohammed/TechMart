@@ -9,9 +9,8 @@ type CartContextType = {
   isLoading?: boolean;
   handleAddToCart?: (
       productId: string,
-      setAddToCartLoading: any
-  
-    )  => Promise<void>;
+      setAddToCartLoading: React.Dispatch<React.SetStateAction<boolean>>
+  )  => Promise<void>;
 };
 
 export const cartContext = createContext<CartContextType>({});
@@ -31,7 +30,7 @@ export default function CartContextProvider({
     setIsLoading(false);
   }
 
-  async function handleAddToCart(product:string, setAddToCartLoading:any){
+  async function handleAddToCart(product:string, setAddToCartLoading: React.Dispatch<React.SetStateAction<boolean>>){
   setAddToCartLoading(true)
   const data = await apiServices.addProductToCart(product);
   setCartCount(data.numOfCartItems);

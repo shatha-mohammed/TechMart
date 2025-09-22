@@ -16,19 +16,24 @@ export default function ForgotPasswordPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  e.preventDefault();
+  setIsLoading(true);
 
-    try {
-      await apiServices.forgotPassword({ email });
-      setIsSubmitted(true);
-      toast.success("Password reset email sent!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to send reset email");
-    } finally {
-      setIsLoading(false);
+  try {
+    await apiServices.forgotPassword({ email });
+    setIsSubmitted(true);
+    toast.success("Password reset email sent!");
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      toast.error(error.message);
+    } else {
+      toast.error("Failed to send reset email");
     }
-  };
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   if (isSubmitted) {
     return (

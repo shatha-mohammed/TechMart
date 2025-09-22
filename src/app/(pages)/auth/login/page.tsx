@@ -12,14 +12,19 @@ import { Button } from "@/src/components";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 
+type LoginFormValues = {
+  email: string;
+  password: string;
+};
+
 export default function Login() {
-  const form = useForm();
+  const form = useForm<LoginFormValues>();
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackURL = searchParams.get("callbackUrl") || "/products";
   const [signingIn, setSigningIn] = useState(false);
 
-  async function onSubmit(values: any) {
+  async function onSubmit(values: LoginFormValues) {
     setSigningIn(true);
     try {
       const response = await signIn("credentials", {
@@ -30,7 +35,7 @@ export default function Login() {
       if (response?.ok) {
         router.push(callbackURL);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       alert(JSON.stringify(error));
     }
     setSigningIn(false);
@@ -77,7 +82,7 @@ return (
           Forgot your password?
         </Link>
         <div className="text-sm text-muted-foreground">
-          Don\'t have an account? {""}
+          Don't have an account? {""}
           <Link href="/auth/register" className="text-primary hover:underline">Sign up</Link>
         </div>
       </div>

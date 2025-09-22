@@ -20,24 +20,26 @@ export default function AllOrdersPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function fetchOrders() {
-    setLoading(true);
-    try {
-      const res = await apiServices.getAllOrders();
-  
-      const orders: Order[] =
-        Array.isArray(res)
-          ? res
-          : Array.isArray((res as any)?.data)
-          ? (res as any).data
-          : [];
-  
-      setOrders(orders);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch orders");
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    const res: unknown = await apiServices.getAllOrders();
+
+    let ordersList: Order[] = [];
+
+    if (Array.isArray(res)) {
+      ordersList = res as Order[];
+    } else if (Array.isArray((res as OrdersResponse)?.data)) {
+      ordersList = (res as OrdersResponse).data;
     }
+
+    setOrders(ordersList);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Failed to fetch orders");
+  } finally {
+    setLoading(false);
   }
+}
+
   useEffect(() => {
     fetchOrders();
   }, []);

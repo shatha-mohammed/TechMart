@@ -12,12 +12,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src
 import { apiServices } from "@/src/services/api";
 import { Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 
+type RegisterFormValues = {
+  name: string;
+  email: string;
+  password: string;
+  passwordConfirm: string;
+  phone?: string;
+};
+
+type RegisterResponseShape = {
+  status?: string;
+  message?: string;
+};
+
 export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackURL = searchParams.get("callbackUrl") || "/products";
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RegisterFormValues>({
     name: "",
     email: "",
     password: "",
@@ -52,31 +65,29 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      // Only include phone when valid Egypt mobile number: ^01[0125][0-9]{8}$
       const normalizedPhone = (formData.phone || "").trim();
       const isEgyptPhone = /^01[0125][0-9]{8}$/.test(normalizedPhone);
 
-      const payload: any = {
+      const payload: RegisterFormValues = {
         name: formData.name,
         email: formData.email,
         password: formData.password,
         passwordConfirm: formData.passwordConfirm,
+        ...(normalizedPhone && isEgyptPhone ? { phone: normalizedPhone } : {}),
       };
-      if (normalizedPhone && isEgyptPhone) {
-        payload.phone = normalizedPhone;
-      }
 
-      const res = await apiServices.register(payload);
+      const res = await apiServices.register(payload as unknown as RegisterFormValues) as RegisterResponseShape; // read status/message only
 
-      const isSuccess = (res as any)?.status === "success" || (res as any)?.message === "success";
+      const isSuccess = res?.status === "success" || res?.message === "success";
       if (isSuccess) {
         toast.success("Account created successfully. Please sign in.");
         router.push("/auth/login?callbackUrl=" + encodeURIComponent(callbackURL));
       } else {
         toast.error("Registration failed. Please try again.");
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Registration failed");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Registration failed";
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

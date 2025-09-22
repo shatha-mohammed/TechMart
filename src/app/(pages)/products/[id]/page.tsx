@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { Button } from "@/src/components/ui/button";
 import { LoadingSpinner } from "@/src/components/shared/LoadingSpinner";
-import {  Heart, Truck, Shield, RotateCcw, Loader2 } from "lucide-react";
+import {  Heart, Truck, Shield, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { renderStars } from "@/src/helpers/rating";
 import { Product } from "@/src/interfaces";

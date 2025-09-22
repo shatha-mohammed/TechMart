@@ -9,31 +9,49 @@ import { authApiService } from "@/src/services/auth-api";
 import { Loader2, CheckCircle, XCircle, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 
+type TestResult = { success: true; data: unknown } | { success: false; error: string };
+
+type ResultsMap = Record<string, TestResult>;
+
+type LoginForm = { email: string; password: string };
+
+type RegisterForm = { name: string; email: string; password: string; passwordConfirm: string };
+
+type ForgotForm = { email: string };
+
+type VerifyForm = { resetCode: string };
+
+type ResetForm = { password: string; passwordConfirm: string };
+
+type ChangeForm = { currentPassword: string; password: string; passwordConfirm: string };
+
+type UpdateProfileForm = { name: string; email: string; phone: string };
+
 export default function ComprehensiveAuthTestPage() {
-  const [results, setResults] = useState<any>({});
+  const [results, setResults] = useState<ResultsMap>({});
   const [loading, setLoading] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
 
   // Form states
-  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
-  const [registerForm, setRegisterForm] = useState({ 
+  const [loginForm, setLoginForm] = useState<LoginForm>({ email: "", password: "" });
+  const [registerForm, setRegisterForm] = useState<RegisterForm>({ 
     name: "", 
     email: "", 
     password: "", 
     passwordConfirm: "" 
   });
-  const [forgotPasswordForm, setForgotPasswordForm] = useState({ email: "" });
-  const [verifyCodeForm, setVerifyCodeForm] = useState({ resetCode: "" });
-  const [resetPasswordForm, setResetPasswordForm] = useState({ 
+  const [forgotPasswordForm, setForgotPasswordForm] = useState<ForgotForm>({ email: "" });
+  const [verifyCodeForm, setVerifyCodeForm] = useState<VerifyForm>({ resetCode: "" });
+  const [resetPasswordForm, setResetPasswordForm] = useState<ResetForm>({ 
     password: "", 
     passwordConfirm: "" 
   });
-  const [changePasswordForm, setChangePasswordForm] = useState({ 
+  const [changePasswordForm, setChangePasswordForm] = useState<ChangeForm>({ 
     currentPassword: "", 
     password: "", 
     passwordConfirm: "" 
   });
-  const [updateProfileForm, setUpdateProfileForm] = useState({ 
+  const [updateProfileForm, setUpdateProfileForm] = useState<UpdateProfileForm>({ 
     name: "", 
     email: "", 
     phone: "" 
@@ -41,15 +59,16 @@ export default function ComprehensiveAuthTestPage() {
 
   const [authToken, setAuthToken] = useState("");
 
-  const testEndpoint = async (name: string, testFunction: () => Promise<any>) => {
+  const testEndpoint = async (name: string, testFunction: () => Promise<unknown>) => {
     setLoading(name);
     try {
       const result = await testFunction();
       setResults(prev => ({ ...prev, [name]: { success: true, data: result } }));
       toast.success(`${name} test passed!`);
-    } catch (error: any) {
-      setResults(prev => ({ ...prev, [name]: { success: false, error: error.message } }));
-      toast.error(`${name} test failed: ${error.message}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      setResults(prev => ({ ...prev, [name]: { success: false, error: msg } }));
+      toast.error(`${name} test failed: ${msg}`);
     } finally {
       setLoading(null);
     }
@@ -62,8 +81,8 @@ export default function ComprehensiveAuthTestPage() {
   const handleLogin = async () => {
     await testEndpoint("Login", async () => {
       const result = await authApiService.login(loginForm.email, loginForm.password);
-      if (result.token) {
-        setAuthToken(result.token);
+      if ((result as { token?: string }).token) {
+        setAuthToken((result as { token: string }).token);
       }
       return result;
     });
@@ -95,7 +114,7 @@ export default function ComprehensiveAuthTestPage() {
   const handleResetPassword = async () => {
     await testEndpoint("Reset Password", async () => {
       return await authApiService.resetPassword({
-        token: "sample-token", // In real app, this would come from URL params
+        token: "sample-token",
         password: resetPasswordForm.password,
         passwordConfirm: resetPasswordForm.passwordConfirm
       });
@@ -135,7 +154,6 @@ export default function ComprehensiveAuthTestPage() {
   const handleDeleteAccount = async () => {
     if (!authToken) {
       toast.error("Please login first to test delete account");
-      return;
     }
     await testEndpoint("Delete Account", async () => {
       return await authApiService.deleteAccount(authToken);
@@ -146,7 +164,7 @@ export default function ComprehensiveAuthTestPage() {
     await testEndpoint("Logout", async () => {
       await authApiService.logout();
       setAuthToken("");
-      return { message: "Logged out successfully" };
+      return { message: "Logged out successfully" } as const;
     });
   };
 

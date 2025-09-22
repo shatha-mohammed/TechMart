@@ -1,5 +1,6 @@
 import { ProductsResponse,SingleProductResponse, BrandsResponse, CategoriesResponse, SingleBrandResponse, SingleCategoryResponse } from "../types/responses";
 import { AddToCartResponse,GetUserCartResponse, OrdersResponse, SingleOrderResponse, WishlistResponse, AddToWishlistResponse, RemoveFromWishlistResponse, AuthResponse, ForgotPasswordResponse, ResetPasswordResponse, CreateOrderRequest, ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest, LoginRequest, RegisterRequest, VerifyResetCodeRequest, VerifyResetCodeResponse, ResetPasswordWithEmailRequest, ResetPasswordWithEmailResponse } from "../interfaces";
+import { RemoveCartProductResponse, BasicStatusResponse, UpdateCartCountResponse, CreateReviewResponse, ProductReviewsResponse } from "../interfaces";
 
 
 
@@ -135,19 +136,19 @@ async getUserToCart(): Promise<GetUserCartResponse> {
     headers: this.#getHeaders()
   }).then(res => res.json())
 }
-async removeCartProduct(productId: string): Promise<any> {
+async removeCartProduct(productId: string): Promise<RemoveCartProductResponse> {
   return await fetch(this.#baseUrl + "api/v1/cart/" + productId, {
     headers: this.#getHeaders(),
     method: 'delete'
   }).then(res => res.json());
 }
-async clearCart(): Promise<any> {
+async clearCart(): Promise<BasicStatusResponse> {
   return await fetch(this.#baseUrl + "api/v1/cart/", {
     headers: this.#getHeaders(),
     method: 'delete'
   }).then(res => res.json());
 }
-async updateCartProductCount(productId: string, count: number): Promise<any> {
+async updateCartProductCount(productId: string, count: number): Promise<UpdateCartCountResponse> {
   return await fetch(this.#baseUrl + "api/v1/cart/" + productId, {
     method: 'put',
     body: JSON.stringify({ count }),
@@ -432,7 +433,7 @@ async removeFromWishlist(productId: string): Promise<RemoveFromWishlistResponse>
 }
 
 // Reviews API
-async createReview(productId: string, review: { rating: number; comment: string }): Promise<any> {
+async createReview(productId: string, review: { rating: number; comment: string }): Promise<CreateReviewResponse> {
   return await fetch(this.#baseUrl + "api/v1/products/" + productId + "/reviews", {
     body: JSON.stringify(review),
     headers: this.#getHeaders(),
@@ -440,7 +441,7 @@ async createReview(productId: string, review: { rating: number; comment: string 
   }).then(res => res.json());
 }
 
-async getProductReviews(productId: string): Promise<any> {
+async getProductReviews(productId: string): Promise<ProductReviewsResponse> {
   return await fetch(this.#baseUrl + "api/v1/products/" + productId + "/reviews", {
     headers: this.#getHeaders()
   }).then(res => res.json());

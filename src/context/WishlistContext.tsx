@@ -15,6 +15,23 @@ interface WishlistContextType {
   fetchWishlist: () => Promise<void>;
 }
 
+// Very loose product shape we expect from getProductDetails
+type MinimalProduct = {
+  _id?: string;
+  id?: string;
+  title?: string;
+  imageCover?: string;
+  price?: number;
+};
+
+// Raw wishlist item can be many shapes; type as union of likely fields
+type RawWishlistItem = {
+  _id?: string;
+  id?: string;
+  product?: { _id?: string; id?: string } & MinimalProduct;
+  productId?: string;
+} | string | [unknown, unknown] | Record<string, unknown>;
+
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
@@ -23,40 +40,37 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   const wishlistCount = wishlist.length;
 
-  // helper: extract productId from various raw shapes
-  function extractProductId(raw: any): string | null {
+  function extractProductId(raw: RawWishlistItem): string | null {
     if (!raw) return null;
 
-    // shape: { product: { _id / id } }
-    if (raw.product && (raw.product._id || raw.product.id)) {
+    if (typeof raw === 'string') return raw;
+
+    if (Array.isArray(raw)) {
+      const candidate = (raw[1] ?? raw[0]) as unknown;
+      return typeof candidate === 'string' ? candidate : null;
+    }
+
+    if ('product' in raw && raw.product && (raw.product._id || raw.product.id)) {
       return String(raw.product._id ?? raw.product.id);
     }
 
-    // shape: { productId: "..." }
-    if (raw.productId) return String(raw.productId);
+    if ('productId' in raw && raw.productId) return String(raw.productId);
 
-    // shape: raw string (productId)
-    if (typeof raw === "string") return raw;
-
-    // shape: array like ["userId", "productId"] or [productId]
-    if (Array.isArray(raw) && (raw[1] || raw[0])) return String(raw[1] ?? raw[0]);
-
-    // shape: maybe the raw itself is a product object { _id / id }
-    if (raw._id || raw.id) return String(raw._id ?? raw.id);
+    if ('_id' in raw && raw._id) return String(raw._id);
+    if ('id' in raw && raw.id) return String(raw.id);
 
     return null;
   }
 
-  // fetch product details for ids in parallel, return map id -> product
   async function fetchProductsByIds(ids: string[]) {
     const uniqueIds = Array.from(new Set(ids)).filter(Boolean);
-    const productsById: Record<string, any> = {};
+    const productsById: Record<string, MinimalProduct | null> = {};
 
     await Promise.all(
       uniqueIds.map(async (id) => {
         try {
           const res = await apiServices.getProductDetails(String(id));
-          const product = res?.data ?? res ?? null;
+          const product = (res?.data ?? res ?? null) as MinimalProduct | null;
           productsById[id] = product;
         } catch (e) {
           console.warn("Wishlist: failed to fetch product", id, e);
@@ -72,9 +86,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const data = await apiServices.getWishlist();
-      console.log('Wishlist API Response:', data);
-
-      const rawItems: any[] = data?.data ?? data ?? [];
+      const rawItems = (data?.data ?? data ?? []) as RawWishlistItem[];
 
       if (!Array.isArray(rawItems)) {
         console.error('Invalid wishlist data structure:', rawItems);
@@ -82,40 +94,35 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // extract product ids
       const productIds = rawItems
         .map((r) => extractProductId(r))
-        .filter(Boolean) as string[];
+        .filter((x): x is string => typeof x === 'string');
 
       const productsById = await fetchProductsByIds(productIds);
 
-      // normalize items into shape that contains product
       const normalized: WishlistItem[] = rawItems.map((raw, idx) => {
         const pid = extractProductId(raw) ?? `${idx}`;
         const product = productsById[pid] ?? null;
+        const wlId = (typeof raw === 'object' && raw && ('_id' in raw) && raw._id ? String(raw._id) : undefined) ||
+                     (typeof raw === 'object' && raw && ('id' in raw) && raw.id ? String(raw.id) : undefined) || `${pid}-wl-${idx}`;
 
-        // try to create an _id for the wishlist item if not provided
-        const wlId = raw?._id ?? raw?.id ?? `${pid}-wl-${idx}`;
-
-        // Build object following your WishlistItem interface expectation:
-        // keep original raw item in case backend returns different fields
-        const item: any = {
+        return {
           _id: wlId,
-          productId: pid,
-          product,
-          raw,
-        };
+          user: '',
+          product: {
+            _id: product?._id ?? product?.id ?? pid,
+            title: product?.title ?? '',
+            imageCover: product?.imageCover ?? '',
+            price: product?.price ?? 0,
+            brand: { _id: '', name: 'Unknown' },
+            category: { _id: '', name: 'Unknown' }
+          },
+          createdAt: new Date().toISOString()
+        } as WishlistItem;
+      }).filter((it) => Boolean(it.product && (it.product._id)));
 
-        return item as WishlistItem;
-      });
-
-      // optionally filter items missing product to avoid render errors
-      const validItems = normalized.filter((it) => it && (it as any).product && ((it as any).product._id || (it as any).product.id));
-      console.log('Normalized wishlist items:', normalized);
-      console.log('Valid wishlist items:', validItems);
-
-      setWishlist(validItems);
-    } catch (error) {
+      setWishlist(normalized);
+    } catch (error: unknown) {
       console.error('Failed to fetch wishlist:', error);
       setWishlist([]);
     } finally {
@@ -125,12 +132,10 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   const addToWishlist = async (productId: string) => {
     try {
-      const data = await apiServices.addToWishlist(productId);
-      console.log('Add to wishlist response:', data);
-      // refresh canonical wishlist from server (handles cases where backend returns only ids)
+      await apiServices.addToWishlist(productId);
       await fetchWishlist();
       toast.success('Added to wishlist');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to add to wishlist:', error);
       toast.error('Failed to add to wishlist');
     }
@@ -138,26 +143,20 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   const removeFromWishlist = async (productId: string) => {
     try {
-      // attempt apiServices remove function if present
-      if (typeof (apiServices as any).removeFromWishlist === 'function') {
-        await (apiServices as any).removeFromWishlist(productId);
+      if (typeof (apiServices as unknown as { removeFromWishlist?: (id: string) => Promise<unknown> }).removeFromWishlist === 'function') {
+        await (apiServices as unknown as { removeFromWishlist: (id: string) => Promise<unknown> }).removeFromWishlist(productId);
       } else {
-        // fallback: call DELETE endpoint
         await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}api/v1/wishlist/${productId}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
-            ...(typeof (apiServices as any).getHeaders === 'function'
-              ? (apiServices as any).getHeaders()
-              : {}),
           },
         });
       }
 
-      // refresh
       await fetchWishlist();
       toast.success('Removed from wishlist');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to remove from wishlist:', error);
       toast.error('Failed to remove from wishlist');
     }
@@ -165,14 +164,14 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
   const isInWishlist = (productId: string) => {
     return wishlist.some(item => {
-      const pid = (item as any).productId ?? ((item as any).product && ((item as any).product._id ?? (item as any).product.id));
+      const pid = (item as unknown as { productId?: string; product?: { _id?: string; id?: string } }).productId
+        ?? (item.product && (item.product._id ?? (item.product as unknown as { id?: string }).id));
       return pid === productId;
     });
   };
 
   useEffect(() => {
     fetchWishlist();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

@@ -8,3 +8,27 @@ export interface ApiResponse<T> {
   };
   data: T[];
 }
+
+export interface BasicStatusResponse {
+  status: string;
+  message?: string;
+}
+
+export interface RemoveCartProductResponse extends BasicStatusResponse {
+  numOfCartItems?: number;
+}
+
+export interface UpdateCartCountResponse {
+  status: string;
+  data?: unknown;
+}
+
+export interface CreateReviewResponse {
+  status: string;
+  data?: unknown;
+}
+
+export interface ProductReviewsResponse {
+  status?: string;
+  data?: unknown;
+}

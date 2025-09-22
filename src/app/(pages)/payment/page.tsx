@@ -117,10 +117,9 @@ export default function PaymentPage() {
       // If no external URL, assume success and navigate to orders
       toast.success("Order placed successfully!");
       router.push("/allorders");
-    } catch (error: any) {
-      console.error("Payment error:", error);
-      // show backend error message if present
-      const msg = error?.message ?? "Failed to process payment";
+    } catch (error: unknown) {
+      console.error('Checkout error:', error);
+      const msg = error instanceof Error ? error.message : "Failed to process payment";
       toast.error(msg);
     } finally {
       setIsProcessing(false);

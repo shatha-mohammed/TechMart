@@ -9,26 +9,31 @@ import { apiServices } from "@/src/services/api";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
+type TestResult = { success: true; data: unknown } | { success: false; error: string };
+
+type ResultsMap = Record<string, TestResult>;
+
 export default function AuthTestPage() {
-  const [results, setResults] = useState<any>({});
+  const [results, setResults] = useState<ResultsMap>({});
   const [loading, setLoading] = useState<string | null>(null);
   const [token, setToken] = useState<string>("");
-  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+  const [loginForm, setLoginForm] = useState<{ email: string; password: string }>({ email: "", password: "" });
 
   useEffect(() => {
     const t = typeof window !== 'undefined' ? localStorage.getItem('token') || '' : '';
     if (t) setToken(t);
   }, []);
 
-  const testEndpoint = async (name: string, testFunction: () => Promise<any>) => {
+  const testEndpoint = async (name: string, testFunction: () => Promise<unknown>) => {
     setLoading(name);
     try {
       const result = await testFunction();
       setResults(prev => ({ ...prev, [name]: { success: true, data: result } }));
       toast.success(`${name} test passed!`);
-    } catch (error: any) {
-      setResults(prev => ({ ...prev, [name]: { success: false, error: error.message } }));
-      toast.error(`${name} test failed: ${error.message}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      setResults(prev => ({ ...prev, [name]: { success: false, error: msg } }));
+      toast.error(`${name} test failed: ${msg}`);
     } finally {
       setLoading(null);
     }
@@ -36,11 +41,11 @@ export default function AuthTestPage() {
 
   const handleLogin = async () => {
     await testEndpoint("Login (for protected)", async () => {
-      const res: any = await apiServices.login(loginForm.email, loginForm.password);
-      const apiToken = res?.token || res?.data?.token;
-      if (apiToken && typeof window !== 'undefined') {
-        localStorage.setItem('token', apiToken);
-        setToken(apiToken);
+      const res: unknown = await apiServices.login(loginForm.email, loginForm.password);
+      const tokenCandidate = (res as { token?: string; data?: { token?: string } })?.token || (res as { data?: { token?: string } })?.data?.token;
+      if (tokenCandidate && typeof window !== 'undefined') {
+        localStorage.setItem('token', tokenCandidate);
+        setToken(tokenCandidate);
       }
       return res;
     });
@@ -92,7 +97,6 @@ export default function AuthTestPage() {
 
     for (const endpoint of endpoints) {
       await testEndpoint(endpoint.name, endpoint.test);
-      // Wait a bit between requests
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   };
