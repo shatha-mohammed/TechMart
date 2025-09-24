@@ -113,7 +113,7 @@ export function Navbar() {
                   </Button>
                 </Link>
                 <div className="flex gap-2 ms-3 items-center">
-<p>Hi Shosho</p>
+                  <p>Hi Shosho</p>
                   <Button onClick={() => signOut()} variant="ghost" size="icon">
                     <LogOut className="h-5 w-5" />
                     <span className="sr-only">Logout</span>

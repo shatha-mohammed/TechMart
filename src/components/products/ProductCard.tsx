@@ -35,13 +35,13 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
 
   if (viewMode === "list") {
     return (
-      <div className="flex gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow">
-        <div className="relative w-32 h-32 flex-shrink-0">
+      <div className="flex gap-4 p-6 card-colorful hover-lift">
+        <div className="relative w-32 h-32 flex-shrink-0 rounded-xl overflow-hidden shadow-primary">
           <Image
             src={product.imageCover}
             alt={product.title}
             fill
-            className="object-cover rounded-md"
+            className="object-cover transition-transform duration-300 hover:scale-110"
             sizes="128px"
           />
         </div>
@@ -51,7 +51,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
             <h3 className="font-semibold text-lg line-clamp-2">
               <Link
                 href={`/products/${product.id}`}
-                className="hover:text-primary transition-colors"
+                className="hover:text-gradient transition-all duration-300"
               >
                 {product.title}
               </Link>
@@ -59,6 +59,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
             <Button 
               variant="ghost" 
               size="sm"
+              className="hover:gradient-secondary hover:text-white transition-all duration-300"
               onClick={() => isInWishlist(product._id) ? removeFromWishlist(product._id) : addToWishlist(product._id)}
             >
               <Heart 
@@ -86,7 +87,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
 
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
-              <span className="text-2xl font-bold text-primary">
+              <span className="text-2xl font-bold text-gradient">
                 {formatPrice(product.price)}
               </span>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -95,7 +96,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
                   {product.brand ? (
                     <Link
                       href={`/brands/${product.brand._id}`}
-                      className="hover:text-primary hover:underline transition-colors"
+                      className="hover:text-gradient hover:underline transition-all duration-300"
                     >
                       {product.brand.name}
                     </Link>
@@ -108,7 +109,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
                   {product.category ? (
                     <Link
                       href={`/categories/${product.category._id}`}
-                      className="hover:text-primary hover:underline transition-colors"
+                      className="hover:text-gradient hover:underline transition-all duration-300"
                     >
                       {product.category.name}
                     </Link>
@@ -119,7 +120,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
               </div>
             </div>
 
-            <Button>
+            <Button className="btn-gradient">
               <ShoppingCart className="h-4 w-4 mr-2" />
               Add to Cart
             </Button>
@@ -130,15 +131,15 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
   } 
 
   return (
-    <div className="group relative flex flex-col justify-between bg-white border rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300">
+    <div className="group relative flex flex-col justify-between card-colorful hover-lift">
       <div className="">
         {/* Product Image */}
-      <div className="relative aspect-square overflow-hidden">
+      <div className="relative aspect-square overflow-hidden rounded-t-xl">
         <Image
           src={product.imageCover}
           alt={product.title}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          className="object-cover group-hover:scale-110 transition-transform duration-500"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
         />
 
@@ -146,7 +147,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 hover:bg-white"
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 glass hover:gradient-secondary hover:text-white"
           onClick={() => isInWishlist(product._id) ? removeFromWishlist(product._id) : addToWishlist(product._id)}
         >
           <Heart 
@@ -156,7 +157,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
 
         {/* Badge for sold items */}
         {product.sold > 100 && (
-          <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
+          <div className="absolute top-3 left-3 gradient-accent text-white text-xs px-3 py-1 rounded-full shadow-accent font-medium">
             Popular
           </div>
         )}
@@ -169,7 +170,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
           {product.brand ? (
             <Link
               href={`/brands/${product.brand._id}`}
-              className="hover:text-primary hover:underline transition-colors"
+              className="hover:text-gradient hover:underline transition-all duration-300"
             >
               {product.brand.name}
             </Link>
@@ -179,7 +180,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
         </p>
 
         {/* Title */}
-        <h3 className="font-semibold text-sm mb-2 line-clamp-2 hover:text-primary transition-colors">
+        <h3 className="font-semibold text-sm mb-2 line-clamp-2 hover:text-gradient transition-all duration-300">
           <Link href={`/products/${product.id}`}>{product.title}</Link>
         </h3>
 
@@ -196,7 +197,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
           {product.category ? (
             <Link
               href={`/categories/${product.category._id}`}
-              className="hover:text-primary hover:underline transition-colors"
+              className="hover:text-gradient hover:underline transition-all duration-300"
             >
               {product.category.name}
             </Link>
@@ -207,7 +208,7 @@ export function ProductCard({ product, viewMode = "grid" }: ProductCardProps) {
 
         {/* Price */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-lg font-bold text-primary">
+          <span className="text-lg font-bold text-gradient">
             {formatPrice(product.price)}
           </span>
           <span className="text-xs text-muted-foreground">{product.sold} sold</span>

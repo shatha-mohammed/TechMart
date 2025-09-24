@@ -64,49 +64,55 @@ function hasAccessToken(u: unknown): u is User & { accessToken: string; role?: s
 }
 
 const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
-      name: "shatha",
+      name: "credentials",
       credentials: {
         email: { label: "Email", type: "email", placeholder: "your-email@example.com" },
         password: { label: "Password", type: "password", placeholder: "**********" }
       },
       async authorize(credentials) {
-        const email = credentials?.email?.trim() ?? "";
-        const password = credentials?.password ?? "";
-        if (!email || !password) return null;
+        try {
+          const email = credentials?.email?.trim() ?? "";
+          const password = credentials?.password ?? "";
+          if (!email || !password) return null;
 
-        const resp: unknown = await apiServices.login(email, password);
+          const resp: unknown = await apiServices.login(email, password);
 
-        if (isStdSuccess(resp)) {
-          const apiUser = resp.data.user;
-          const user: User & { accessToken: string; role?: string } = {
-            id: String(apiUser._id ?? apiUser.id ?? apiUser.email ?? "unknown"),
-            name: apiUser.name ?? "",
-            email: apiUser.email ?? "",
-            accessToken: resp.token,
-            role: apiUser.role ?? "user"
-          };
-          return user;
-        }
+          if (isStdSuccess(resp)) {
+            const apiUser = resp.data.user;
+            const user: User & { accessToken: string; role?: string } = {
+              id: String(apiUser._id ?? apiUser.id ?? apiUser.email ?? "unknown"),
+              name: apiUser.name ?? "",
+              email: apiUser.email ?? "",
+              accessToken: resp.token,
+              role: apiUser.role ?? "user"
+            };
+            return user;
+          }
 
-        if (isAltSuccess(resp)) {
-          const apiUser = resp.user;
-          const user: User & { accessToken: string; role?: string } = {
-            id: String(apiUser.email ?? apiUser._id ?? apiUser.id ?? "unknown"),
-            name: apiUser.name ?? "",
-            email: apiUser.email ?? "",
-            accessToken: resp.token,
-            role: apiUser.role ?? "user"
-          };
-          return user;
-        }
+          if (isAltSuccess(resp)) {
+            const apiUser = resp.user;
+            const user: User & { accessToken: string; role?: string } = {
+              id: String(apiUser.email ?? apiUser._id ?? apiUser.id ?? "unknown"),
+              name: apiUser.name ?? "",
+              email: apiUser.email ?? "",
+              accessToken: resp.token,
+              role: apiUser.role ?? "user"
+            };
+            return user;
+          }
 
-        if (isStdFailure(resp)) {
+          if (isStdFailure(resp)) {
+            return null;
+          }
+
+          return null;
+        } catch (error) {
+          console.error("NextAuth authorize error:", error);
           return null;
         }
-
-        return null;
       }
     })
   ],
@@ -132,5 +138,6 @@ const authOptions: NextAuthOptions = {
 };
 
 const handler = NextAuth(authOptions);
+
 export { handler as GET, handler as POST };
 
