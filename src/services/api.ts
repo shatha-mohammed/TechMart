@@ -7,7 +7,6 @@ import { RemoveCartProductResponse, BasicStatusResponse, UpdateCartCountResponse
 
 
 
-
   class ApiServices {
    #baseUrl: string = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
@@ -18,6 +17,44 @@ import { RemoveCartProductResponse, BasicStatusResponse, UpdateCartCountResponse
      }
    }
 
+   // Centralized typed fetch with error handling
+   async #fetchJson<T>(url: string, init: RequestInit, errorContext: string): Promise<T> {
+     const response = await fetch(url, init);
+
+     let parsed: unknown = undefined;
+     try {
+       parsed = await response.json();
+     } catch {
+       // ignore JSON parse error; may read text below
+     }
+
+     if (!response.ok) {
+       let message = errorContext;
+       if (parsed && typeof parsed === 'object') {
+         const obj = parsed as Record<string, unknown> & { errors?: Record<string, { msg?: string }> };
+         message = (typeof obj.message === 'string' && obj.message)
+           || (typeof obj.statusMsg === 'string' && obj.statusMsg)
+           || (typeof obj.error === 'string' && obj.error)
+           || message;
+         if (message === errorContext && obj.errors) {
+           const firstKey = Object.keys(obj.errors)[0];
+           if (firstKey && typeof obj.errors[firstKey]?.msg === 'string') {
+             message = obj.errors[firstKey]!.msg as string;
+           }
+         }
+       } else {
+         try {
+           const txt = await response.text();
+           if (txt) message = txt;
+         } catch {
+           // ignore
+         }
+       }
+       throw new Error(message);
+     }
+
+     return parsed as T;
+   }
  
 
 
@@ -172,103 +209,48 @@ async checkout(cartId: string) {
   ).then(res => res.json());
 }
 async login(email: string, password: string): Promise<AuthResponse> {
-  console.log('Login request:', {
-    url: this.#baseUrl + "api/v1/auth/signin",
-    data: { email, password },
-    headers: this.#getPublicHeaders()
-  });
-  
-  const response = await fetch(this.#baseUrl + "api/v1/auth/signin", {
-    body: JSON.stringify({
-      email,
-      password
-    }),
-    headers: this.#getPublicHeaders(),
-    method: 'post'
-  });
-  
-  console.log('Login response status:', response.status);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Login error response:', errorText);
-    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-  }
-  
-  return await response.json();
+  return await this.#fetchJson<AuthResponse>(
+    this.#baseUrl + "api/v1/auth/signin",
+    {
+      body: JSON.stringify({ email, password }),
+      headers: this.#getPublicHeaders(),
+      method: 'post'
+    },
+    'Login failed'
+  );
 }
 
+
+
+
 async register(userData: RegisterRequest): Promise<AuthResponse> {
-  console.log('Register request:', {
-    url: this.#baseUrl + "api/v1/auth/signup",
-    data: userData,
-    headers: this.#getPublicHeaders()
-  });
-  
-  const response = await fetch(this.#baseUrl + "api/v1/auth/signup", {
-    body: JSON.stringify({
-      name: userData.name,
-      email: userData.email,
-      password: userData.password,
-      rePassword: userData.passwordConfirm,
-      phone: userData.phone
-    }),
-    headers: this.#getPublicHeaders(),
-    method: 'post'
-  });
-  
-  console.log('Register response status:', response.status);
-  
-  if (!response.ok) {
-    let errorMessage = `HTTP error! status: ${response.status}`;
-    try {
-      const json = await response.json();
-      // Common shapes: { message: 'fail', errors: {...} } OR { statusMsg: 'fail', message: '...' }
-      const apiMsg = json?.message || json?.statusMsg || json?.error || undefined;
-      if (typeof apiMsg === 'string') {
-        errorMessage = apiMsg;
-      }
-      // Try nested errors
-      if (!apiMsg && json?.errors) {
-        const firstKey = Object.keys(json.errors)[0];
-        const first = json.errors[firstKey];
-        if (typeof first?.msg === 'string') {
-          errorMessage = first.msg;
-        }
-      }
-    } catch (_e) {
-      const errorText = await response.text();
-      if (errorText) errorMessage = errorText;
-    }
-    console.error('Register error response:', errorMessage);
-    throw new Error(errorMessage);
-  }
-  
-  return await response.json();
+  return await this.#fetchJson<AuthResponse>(
+    this.#baseUrl + "api/v1/auth/signup",
+    {
+      body: JSON.stringify({
+        name: userData.name,
+        email: userData.email,
+        password: userData.password,
+        rePassword: userData.passwordConfirm,
+        phone: userData.phone
+      }),
+      headers: this.#getPublicHeaders(),
+      method: 'post'
+    },
+    'Registration failed'
+  );
 }
 
 async forgotPassword(data: ForgotPasswordRequest): Promise<ForgotPasswordResponse> {
-  console.log('Forgot password request:', {
-    url: this.#baseUrl + "api/v1/auth/forgotPasswords",
-    data,
-    headers: this.#getPublicHeaders()
-  });
-  
-  const response = await fetch(this.#baseUrl + "api/v1/auth/forgotPasswords", {
-    body: JSON.stringify(data),
-    headers: this.#getPublicHeaders(),
-    method: 'post'
-  });
-  
-  console.log('Forgot password response status:', response.status);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Forgot password error response:', errorText);
-    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-  }
-  
-  return await response.json();
+  return await this.#fetchJson<ForgotPasswordResponse>(
+    this.#baseUrl + "api/v1/auth/forgotPasswords",
+    {
+      body: JSON.stringify(data),
+      headers: this.#getPublicHeaders(),
+      method: 'post'
+    },
+    'Forgot password failed'
+  );
 }
 
 async resetPassword(data: ResetPasswordRequest): Promise<ResetPasswordResponse> {
@@ -283,103 +265,55 @@ async resetPassword(data: ResetPasswordRequest): Promise<ResetPasswordResponse> 
 }
 
 async verifyResetCode(data: VerifyResetCodeRequest): Promise<VerifyResetCodeResponse> {
-  console.log('Verify reset code request:', {
-    url: this.#baseUrl + "api/v1/auth/verifyResetCode",
-    data,
-    headers: this.#getPublicHeaders()
-  });
-  
-  const response = await fetch(this.#baseUrl + "api/v1/auth/verifyResetCode", {
-    body: JSON.stringify(data),
-    headers: this.#getPublicHeaders(),
-    method: 'post'
-  });
-  
-  console.log('Verify reset code response status:', response.status);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Verify reset code error response:', errorText);
-    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-  }
-  
-  return await response.json();
+  return await this.#fetchJson<VerifyResetCodeResponse>(
+    this.#baseUrl + "api/v1/auth/verifyResetCode",
+    {
+      body: JSON.stringify(data),
+      headers: this.#getPublicHeaders(),
+      method: 'post'
+    },
+    'Verify reset code failed'
+  );
 }
 
 async changePassword(data: ChangePasswordRequest): Promise<AuthResponse> {
-  console.log('Change password request:', {
-    url: this.#baseUrl + "api/v1/users/changeMyPassword",
-    data,
-    headers: this.#getHeaders()
-  });
-  
-  const response = await fetch(this.#baseUrl + "api/v1/users/changeMyPassword", {
-    body: JSON.stringify({
-      currentPassword: data.currentPassword,
-      password: data.password,
-      rePassword: data.passwordConfirm
-    }),
-    headers: this.#getHeaders(),
-    method: 'put'
-  });
-  
-  console.log('Change password response status:', response.status);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Change password error response:', errorText);
-    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-  }
-  
-  return await response.json();
+  return await this.#fetchJson<AuthResponse>(
+    this.#baseUrl + "api/v1/users/changeMyPassword",
+    {
+      body: JSON.stringify({
+        currentPassword: data.currentPassword,
+        password: data.password,
+        rePassword: data.passwordConfirm
+      }),
+      headers: this.#getHeaders(),
+      method: 'put'
+    },
+    'Change password failed'
+  );
 }
 
 async resetPasswordWithEmail(data: ResetPasswordWithEmailRequest): Promise<ResetPasswordWithEmailResponse> {
-  console.log('Reset password with email request:', {
-    url: this.#baseUrl + "api/v1/auth/resetPassword",
-    data,
-    headers: this.#getPublicHeaders()
-  });
-  
-  const response = await fetch(this.#baseUrl + "api/v1/auth/resetPassword", {
-    body: JSON.stringify(data),
-    headers: this.#getPublicHeaders(),
-    method: 'put'
-  });
-  
-  console.log('Reset password with email response status:', response.status);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Reset password with email error response:', errorText);
-    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-  }
-  
-  return await response.json();
+  return await this.#fetchJson<ResetPasswordWithEmailResponse>(
+    this.#baseUrl + "api/v1/auth/resetPassword",
+    {
+      body: JSON.stringify(data),
+      headers: this.#getPublicHeaders(),
+      method: 'put'
+    },
+    'Reset password failed'
+  );
 }
 
 async updateMe(userData: Partial<{ name: string; email: string; phone: string }>): Promise<AuthResponse> {
-  console.log('Update profile request:', {
-    url: this.#baseUrl + "api/v1/users/updateMe",
-    data: userData,
-    headers: this.#getHeaders()
-  });
-  
-  const response = await fetch(this.#baseUrl + "api/v1/users/updateMe", {
-    body: JSON.stringify(userData),
-    headers: this.#getHeaders(),
-    method: 'put'
-  });
-  
-  console.log('Update profile response status:', response.status);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Update profile error response:', errorText);
-    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-  }
-  
-  return await response.json();
+  return await this.#fetchJson<AuthResponse>(
+    this.#baseUrl + "api/v1/users/updateMe",
+    {
+      body: JSON.stringify(userData),
+      headers: this.#getHeaders(),
+      method: 'put'
+    },
+    'Update profile failed'
+  );
 }
 
 async deleteMe(): Promise<{ status: string; message: string }> {
@@ -446,5 +380,5 @@ async getProductReviews(productId: string): Promise<ProductReviewsResponse> {
     headers: this.#getHeaders()
   }).then(res => res.json());
 }
- }
+ } 
 export const apiServices = new ApiServices();

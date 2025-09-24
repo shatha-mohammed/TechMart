@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useCallback } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { Button } from "@/src/components/ui/button";
@@ -14,31 +14,38 @@ import { formatPrice } from "@/src/helpers/currency";
 import { apiServices } from "@/src/services/api";
 import AddToCartButton from "@/src/components/products/AddToCartButton";
 import { cartContext } from "@/src/context/CartContext";
+
 export default function ProductDetailPage() {
   const { id } = useParams();
   const [product, setProduct] = useState <Product| null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const[addToCartLoading, setAddToCartLoading] =useState(false)
   const { handleAddToCart } = useContext(cartContext);
  
- async function fetchProductDetails() {
-  setLoading(true)
-  const data: SingleProductResponse = await apiServices.getProductDetails(
-   String(id)
-  );
+  const fetchProductDetails = useCallback(async () => {
+    if (!id) {
+      setError("Missing product id");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const data: SingleProductResponse = await apiServices.getProductDetails(String(id));
+      setProduct(data.data);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to load product";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
-  setLoading(false)
-  setProduct(data.data);
-}
-
-useEffect(() => {
-  fetchProductDetails();
-}, []);
-
-
-
+  useEffect(() => {
+    fetchProductDetails();
+  }, [fetchProductDetails]);
 
   if (loading) {
     return (
@@ -61,6 +68,9 @@ useEffect(() => {
     );
   }
 
+  const gallery = Array.isArray(product.images) ? product.images : [];
+  const mainImage = gallery[selectedImage] || product.imageCover || "/placeholder.png";
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -69,7 +79,7 @@ useEffect(() => {
           {/* Main Image */}
           <div className="relative aspect-square overflow-hidden rounded-lg border">
             <Image
-              src={product.images[selectedImage]?? product.quantity}
+              src={mainImage}
               alt={product.title}
               fill
               className="object-cover"
@@ -78,9 +88,9 @@ useEffect(() => {
           </div>
 
           {/* Thumbnail Images */}
-          {product.images.length > 1 && (
+          {gallery.length > 1 && (
             <div className="flex gap-2 overflow-x-auto">
-              {product.images.map((image, index) => (
+              {gallery.map((image, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}

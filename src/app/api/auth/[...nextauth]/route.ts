@@ -1,8 +1,69 @@
-import NextAuth from 'next-auth';
-import { apiServices } from '@/src/services/api';
-import CredentialsProvider from 'next-auth/providers/credentials';
+import NextAuth, { NextAuthOptions, User } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import type { JWT } from "next-auth/jwt";
+import type { Session } from "next-auth";
+import { apiServices } from "@/src/services/api";
 
-const handler = NextAuth({
+type ApiUser = {
+  _id?: string;
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+};
+
+type StdSuccess = {
+  status: "success";
+  token: string;
+  data: { user: ApiUser };
+};
+
+type StdFailure = {
+  status: "fail" | "error";
+  message?: string;
+  statusMsg?: string;
+};
+
+type AltSuccess = {
+  message: string;
+  token: string;
+  user: ApiUser;
+  status?: unknown;
+  statusMsg?: string;
+};
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null;
+}
+
+function isStdSuccess(val: unknown): val is StdSuccess {
+  return (
+    isRecord(val) &&
+    val.status === "success" &&
+    typeof val.token === "string" &&
+    isRecord(val.data) &&
+    isRecord((val.data as Record<string, unknown>).user)
+  );
+}
+
+function isStdFailure(val: unknown): val is StdFailure {
+  return isRecord(val) && (val.status === "fail" || val.status === "error");
+}
+
+function isAltSuccess(val: unknown): val is AltSuccess {
+  return (
+    isRecord(val) &&
+    typeof val.message === "string" &&
+    typeof val.token === "string" &&
+    isRecord((val.user as unknown))
+  );
+}
+
+function hasAccessToken(u: unknown): u is User & { accessToken: string; role?: string } {
+  return isRecord(u) && typeof (u as Record<string, unknown>).accessToken === "string";
+}
+
+const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "shatha",
@@ -10,53 +71,66 @@ const handler = NextAuth({
         email: { label: "Email", type: "email", placeholder: "your-email@example.com" },
         password: { label: "Password", type: "password", placeholder: "**********" }
       },
-      async authorize(credentials, req) {
-        const response = await apiServices.login(
-          credentials?.email ?? "",
-          credentials?.password ?? ""
-        );
-      console.log("🚀 ~ authorize ~ response:", response)
+      async authorize(credentials) {
+        const email = credentials?.email?.trim() ?? "";
+        const password = credentials?.password ?? "";
+        if (!email || !password) return null;
 
+        const resp: unknown = await apiServices.login(email, password);
 
-        if (response.message == "success") {
-          const user = {
-            id: response.user.email,
-            name: response.user.name,
-            email: response.user.email,
-            role: response.user.role,
-            token: response.token,
+        if (isStdSuccess(resp)) {
+          const apiUser = resp.data.user;
+          const user: User & { accessToken: string; role?: string } = {
+            id: String(apiUser._id ?? apiUser.id ?? apiUser.email ?? "unknown"),
+            name: apiUser.name ?? "",
+            email: apiUser.email ?? "",
+            accessToken: resp.token,
+            role: apiUser.role ?? "user"
           };
           return user;
-        } else {
+        }
+
+        if (isAltSuccess(resp)) {
+          const apiUser = resp.user;
+          const user: User & { accessToken: string; role?: string } = {
+            id: String(apiUser.email ?? apiUser._id ?? apiUser.id ?? "unknown"),
+            name: apiUser.name ?? "",
+            email: apiUser.email ?? "",
+            accessToken: resp.token,
+            role: apiUser.role ?? "user"
+          };
+          return user;
+        }
+
+        if (isStdFailure(resp)) {
           return null;
         }
+
+        return null;
       }
     })
   ],
-  pages:{
-    signIn:'/auth/login'
+  pages: {
+    signIn: "/auth/login"
   },
-  
-  
   callbacks: {
-  async jwt({ token, user }) {
-    if (user) {
-      token.token = user.token;
-      token.role = user.role;
+    async jwt({ token, user }): Promise<JWT> {
+      if (user && hasAccessToken(user)) {
+        token.accessToken = user.accessToken;
+        if (user.role) token.role = user.role;
+      }
+      return token;
+    },
+    async session({ session, token }): Promise<Session> {
+      (session as Session & { accessToken?: string }).accessToken = token.accessToken as string | undefined;
+      if (session.user) {
+        session.user.role = (token.role as string | undefined) ?? session.user.role;
+      }
+      return session;
     }
-
-    return token;
-  },
-  async session({ session, token }) {
-    if (session) {
-      session.user.role = token.role as string;
-      session.token = token.token as string;
-    }
-
-    return session;
   }
-}
-})
+};
 
+const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
 

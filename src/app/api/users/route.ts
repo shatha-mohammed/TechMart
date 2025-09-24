@@ -8,22 +8,50 @@ interface User {
 const users: User[] = [];
 
 export async function GET() {
-  return NextResponse.json(users);
+  try {
+    return NextResponse.json(users, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch users";
+    return NextResponse.json({ message }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  try {
+    const body = (await req.json()) as Partial<User>;
 
-  let isEmailExist: boolean = false;
-
-  for (let i = 0; i < users.length; i++) {
-    if (body.email == users[i].email) {
-      isEmailExist = true;
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ message: "Invalid request body" }, { status: 400 });
     }
-  }
 
-  if (!isEmailExist) {
-    users.push(body);
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const email = typeof body.email === "string" ? body.email.trim() : "";
+
+    if (!name) {
+      return NextResponse.json({ message: "Name is required" }, { status: 400 });
+    }
+
+    if (!email) {
+      return NextResponse.json({ message: "Email is required" }, { status: 400 });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ message: "Email is not valid" }, { status: 400 });
+    }
+
+    const isEmailExist = users.some((u) => u.email.toLowerCase() === email.toLowerCase());
+
+    if (isEmailExist) {
+      return NextResponse.json(
+        { message: `Email '${email}' is already exist` },
+        { status: 409 }
+      );
+    }
+
+    const newUser: User = { name, email };
+    users.push(newUser);
+
     return NextResponse.json(
       {
         message: "success",
@@ -31,13 +59,9 @@ export async function POST(req: Request) {
       },
       { status: 201 }
     );
-  } else {
-    return NextResponse.json(
-      {
-        message: `Email '${body.email}' is already exist`,
-      },
-      { status: 403 }
-    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to create user";
+    return NextResponse.json({ message }, { status: 500 });
   }
 }
 

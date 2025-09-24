@@ -16,24 +16,20 @@ export default function ForgotPasswordPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setIsLoading(true);
+    e.preventDefault();
+    setIsLoading(true);
 
-  try {
-    await apiServices.forgotPassword({ email });
-    setIsSubmitted(true);
-    toast.success("Password reset email sent!");
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      toast.error(error.message);
-    } else {
-      toast.error("Failed to send reset email");
+    try {
+      await apiServices.forgotPassword({ email });
+      setIsSubmitted(true);
+      toast.success("Password reset email sent!");
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Failed to send reset email";
+      toast.error(msg);
+    } finally {
+      setIsLoading(false);
     }
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   if (isSubmitted) {
     return (
@@ -46,12 +42,12 @@ export default function ForgotPasswordPage() {
               </div>
               <CardTitle>Check Your Email</CardTitle>
               <CardDescription>
-                We've sent a password reset link to {email}
+                {"We've sent a password reset link to your email"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                Didn't receive the email? Check your spam folder or try again.
+                {"Didn't receive the email? Check your spam folder or try again."}
               </p>
               <div className="flex flex-col gap-2">
                 <Button 
@@ -86,9 +82,9 @@ export default function ForgotPasswordPage() {
                 </Link>
               </Button>
               <div>
-                <CardTitle>Forgot Password</CardTitle>
+                <CardTitle>{"Forgot your password?"}</CardTitle>
                 <CardDescription>
-                  Enter your email address and we'll send you a reset link
+                  {"We'll send you a reset link to your email."}
                 </CardDescription>
               </div>
             </div>
@@ -112,7 +108,7 @@ export default function ForgotPasswordPage() {
             </form>
             <div className="mt-4 text-center">
               <p className="text-sm text-muted-foreground">
-                Remember your password?{" "}
+                {"Remember your password?"}{" "}
                 <Link href="/auth/login" className="text-primary hover:underline">
                   Sign in
                 </Link>

@@ -225,7 +225,7 @@ export default function AllOrdersPage() {
           <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium mb-2">No orders found</h3>
           <p className="text-muted-foreground mb-4">
-            You haven't placed any orders yet.
+            {"You’re not signed in yet"}
           </p>
           <Button asChild>
             <Link href="/products">
