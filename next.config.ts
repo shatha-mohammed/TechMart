@@ -18,7 +18,6 @@ const nextConfig: NextConfig = {
         hostname: 'ecommerce.routemisr.com',
         pathname: '/Route-Academy-brands/**',
       },
-      
     ],
   },
 };

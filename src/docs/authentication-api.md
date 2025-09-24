@@ -376,3 +376,4 @@ const handleLogin = async () => {
 4. **Validate all input data**
 5. **Use secure JWT secrets**
 6. **Implement proper session management**
+
